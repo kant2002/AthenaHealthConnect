@@ -1,0 +1,30 @@
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.13.35731.43
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AthenaHealthConnect", "AthenaHealthConnect\AthenaHealthConnect\AthenaHealthConnect.csproj", "{658C81B8-CC95-488B-94E1-1EEB1B6E9603}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AthenaHealthConnect.Client", "AthenaHealthConnect\AthenaHealthConnect.Client\AthenaHealthConnect.Client.csproj", "{A191F14A-40E2-445A-B9CB-1EEB3941B14B}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{658C81B8-CC95-488B-94E1-1EEB1B6E9603}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{658C81B8-CC95-488B-94E1-1EEB1B6E9603}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{658C81B8-CC95-488B-94E1-1EEB1B6E9603}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{658C81B8-CC95-488B-94E1-1EEB1B6E9603}.Release|Any CPU.Build.0 = Release|Any CPU
+		{A191F14A-40E2-445A-B9CB-1EEB3941B14B}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{A191F14A-40E2-445A-B9CB-1EEB3941B14B}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{A191F14A-40E2-445A-B9CB-1EEB3941B14B}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{A191F14A-40E2-445A-B9CB-1EEB3941B14B}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {4E625D04-E442-4767-9F79-D5C50988EEA6}
+	EndGlobalSection
+EndGlobal

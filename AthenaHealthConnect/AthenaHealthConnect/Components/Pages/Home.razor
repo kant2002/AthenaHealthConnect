@@ -1,0 +1,65 @@
+﻿@page "/"
+@attribute [StreamRendering]
+@using Duende.IdentityModel.Client
+@using Microsoft.AspNetCore.WebUtilities
+@using System.Net
+@inject NavigationManager NavManager
+@inject IConfiguration Configuration
+
+<PageTitle>Home</PageTitle>
+
+<h1>Hello, Athena!</h1>
+
+<p>
+    Athena Health Server: @AthenaServer
+</p>
+
+@if (string.IsNullOrEmpty(Code))
+{
+    <a href="@GetStartUrl()" rel="noreferrer" class="btn btn-primary">Login</a>
+}
+else
+{
+    <p>PatientId: @PatientId</p>
+    <p>AccessToken: @AccessToken</p>
+    <p>Code: @Code</p>
+}
+
+@code {
+    public string Code { get; set; }
+    public string AccessToken { get; set; }
+    public string PatientId { get; set; }
+
+    public string AthenaServer = "https://ap22sandbox.fhirapi.athenahealth.com/demoAPIServer";
+
+    public string GetStartUrl()
+    {
+        string[] scopes = ["openid", "profile", "patient/*.read", "launch/patient"];
+        var scope = "openid%20profile%20patient/*.read%20launch/patient";
+        var redirectUrl = Configuration["AthenaHealth:RedirectUrl"];
+        var audience = WebUtility.UrlEncode(AthenaServer);// "https%3A%2F%2Fap22sandbox.fhirapi.athenahealth.com%2FdemoAPIServer";
+        var clientId = Configuration["AthenaHealth:ClientId"];
+        var url = $"{AthenaServer}/oauth2/authorize?state=defaultState&scope={scope}&response_type=code&redirect_uri={redirectUrl}&aud={audience}&client_id={clientId}";
+        return url;
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        var uri = NavManager.ToAbsoluteUri(NavManager.Uri);
+        if (QueryHelpers.ParseQuery(uri.Query).TryGetValue("code", out var code))
+        {
+            Code = code;
+
+            var client = new TokenClient(
+                new HttpClient() { BaseAddress = new Uri(AthenaServer) },
+                new TokenClientOptions()
+                    {
+                        ClientId = Configuration["AthenaHealth:ClientId"],
+                        ClientSecret = Configuration["AthenaHealth:ClientSecret"]
+                    });
+            var tokenResponse = await client.RequestAuthorizationCodeTokenAsync(Code, Configuration["AthenaHealth:RedirectUrl"]);
+            var patientId = tokenResponse.Json.Value.GetProperty("patient_id").GetString();
+        }
+    }
+
+}
