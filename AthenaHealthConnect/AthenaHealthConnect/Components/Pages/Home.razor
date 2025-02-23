@@ -20,15 +20,35 @@
 }
 else
 {
+    <p>Error: @Error</p>
     <p>PatientId: @PatientId</p>
+    <p>Uuid: @Uuid</p>
     <p>AccessToken: @AccessToken</p>
+    <p>RawToken: @RawToken</p>
     <p>Code: @Code</p>
+    <p>Scopes: 
+        <ul>
+            @foreach (var scope in TokenScopes.Split(" "))
+            {
+                <li>@scope</li>
+            }
+        </ul>
+    </p>
+    <p>NeedPatientBanner: @NeedPatientBanner</p>
+    <p><a href=@SmartUrl class="btn btn-secondary">SmartUrl</a></p>
+
 }
 
 @code {
     public string Code { get; set; }
     public string AccessToken { get; set; }
     public string PatientId { get; set; }
+    public string RawToken { get; set; }
+    public string Error { get; set; }
+    public string TokenScopes { get; set; } = "";
+    public string Uuid { get; set; }
+    public bool NeedPatientBanner { get; set; }
+    public string SmartUrl { get; set; }
 
     public string AthenaServer = "https://ap22sandbox.fhirapi.athenahealth.com/demoAPIServer";
 
@@ -51,14 +71,23 @@ else
             Code = code;
 
             var client = new TokenClient(
-                new HttpClient() { BaseAddress = new Uri(AthenaServer) },
+                new HttpClient() { BaseAddress = new Uri(AthenaServer + "/oauth2/token") },
                 new TokenClientOptions()
                     {
                         ClientId = Configuration["AthenaHealth:ClientId"],
                         ClientSecret = Configuration["AthenaHealth:ClientSecret"]
                     });
             var tokenResponse = await client.RequestAuthorizationCodeTokenAsync(Code, Configuration["AthenaHealth:RedirectUrl"]);
-            var patientId = tokenResponse.Json.Value.GetProperty("patient_id").GetString();
+            Error = tokenResponse.ErrorType + ": " + tokenResponse.Error + " " + tokenResponse.ErrorDescription;
+            RawToken = tokenResponse.Raw;
+            if (tokenResponse.Json.HasValue)
+            {
+                PatientId = tokenResponse.Json.Value.GetProperty("patient").GetString() ?? "-";
+                TokenScopes = tokenResponse.Json.Value.GetProperty("scope").GetString() ?? "-";
+                Uuid = tokenResponse.Json.Value.GetProperty("uuid").GetString() ?? "-";
+                NeedPatientBanner = tokenResponse.Json.Value.GetProperty("need_patient_banner").GetBoolean();
+                SmartUrl = tokenResponse.Json.Value.GetProperty("smart_style_url").GetString() ?? "-";
+            }
         }
     }
 

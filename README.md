@@ -1,3 +1,3 @@
 # AthenaHealth Connect
 
-Sample how to connec to the AthenaHealth FHIR.
+Sample how to connect to the AthenaHealth FHIR.
