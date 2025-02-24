@@ -1,43 +1,69 @@
 ﻿@page "/"
 @attribute [StreamRendering]
 @using Duende.IdentityModel.Client
+@using Microsoft.AspNetCore.Components.Authorization
+@using Microsoft.AspNetCore.Components.Server.ProtectedBrowserStorage
 @using Microsoft.AspNetCore.WebUtilities
 @using System.Net
+@using System.Security.Claims
 @inject NavigationManager NavManager
+@inject ILogger<Home> Logger
 @inject IConfiguration Configuration
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@inject ProtectedSessionStorage ProtectedSessionStorage
+@rendermode InteractiveServer
 
 <PageTitle>Home</PageTitle>
 
 <h1>Hello, Athena!</h1>
 
 <p>
-    Athena Health Server: @AthenaServer
+    Athena Health Server: @FhirSample.AthenaServer
 </p>
 
-@if (string.IsNullOrEmpty(Code))
-{
-    <a href="@GetStartUrl()" rel="noreferrer" class="btn btn-primary">Login</a>
-}
-else
-{
-    <p>Error: @Error</p>
-    <p>PatientId: @PatientId</p>
-    <p>Uuid: @Uuid</p>
-    <p>AccessToken: @AccessToken</p>
-    <p>RawToken: @RawToken</p>
-    <p>Code: @Code</p>
-    <p>Scopes: 
-        <ul>
-            @foreach (var scope in TokenScopes.Split(" "))
-            {
-                <li>@scope</li>
-            }
-        </ul>
-    </p>
-    <p>NeedPatientBanner: @NeedPatientBanner</p>
-    <p><a href=@SmartUrl class="btn btn-secondary">SmartUrl</a></p>
+<AuthorizeView>
+    <Authorized>
+        <p>Hello, @context.User.Identity?.Name!</p>
+        <p>
+            Claims:
+            <ul>
+                @foreach (var claim in context.User.Claims)
+                {
+                    <li>@claim.Type = @claim.Value</li>
+                }
+            </ul>
+        </p>
+    </Authorized>
+    <NotAuthorized>
+        <p>You're not authorized.</p>
+        <a href="@GetStartUrl()" rel="noreferrer" class="btn btn-primary">Login</a>
+    </NotAuthorized>
+</AuthorizeView>
 
-}
+@* @if (string.IsNullOrEmpty(Code)) *@
+@* { *@
+@*     <a href="@GetStartUrl()" rel="noreferrer" class="btn btn-primary">Login</a> *@
+@* } *@
+@* else *@
+@* { *@
+@*     <p>Error: @Error</p> *@
+@*     <p>PatientId: @PatientId</p> *@
+@*     <p>Uuid: @Uuid</p> *@
+@*     <p>AccessToken: @AccessToken</p> *@
+@*     <p>RawToken: @RawToken</p> *@
+@*     <p>Code: @Code</p> *@
+@*     <p>Scopes:  *@
+@*         <ul> *@
+@*             @foreach (var scope in TokenScopes.Split(" ")) *@
+@*             { *@
+@*                 <li>@scope</li> *@
+@*             } *@
+@*         </ul> *@
+@*     </p> *@
+@*     <p>NeedPatientBanner: @NeedPatientBanner</p> *@
+@*     <p><a href=@SmartUrl class="btn btn-secondary">SmartUrl</a></p> *@
+
+@* } *@
 
 @code {
     public string Code { get; set; }
@@ -50,45 +76,105 @@ else
     public bool NeedPatientBanner { get; set; }
     public string SmartUrl { get; set; }
 
-    public string AthenaServer = "https://ap22sandbox.fhirapi.athenahealth.com/demoAPIServer";
-
     public string GetStartUrl()
     {
         string[] scopes = ["openid", "profile", "patient/*.read", "launch/patient"];
         var scope = "openid%20profile%20patient/*.read%20launch/patient";
         var redirectUrl = Configuration["AthenaHealth:RedirectUrl"];
-        var audience = WebUtility.UrlEncode(AthenaServer);// "https%3A%2F%2Fap22sandbox.fhirapi.athenahealth.com%2FdemoAPIServer";
+        var audience = WebUtility.UrlEncode(FhirSample.AthenaServer);// "https%3A%2F%2Fap22sandbox.fhirapi.athenahealth.com%2FdemoAPIServer";
         var clientId = Configuration["AthenaHealth:ClientId"];
-        var url = $"{AthenaServer}/oauth2/authorize?state=defaultState&scope={scope}&response_type=code&redirect_uri={redirectUrl}&aud={audience}&client_id={clientId}";
+        var url = $"{FhirSample.AthenaServer}/oauth2/authorize?state=defaultState&scope={scope}&response_type=code&redirect_uri={redirectUrl}&aud={audience}&client_id={clientId}";
         return url;
     }
 
     protected override async Task OnInitializedAsync()
     {
-        var uri = NavManager.ToAbsoluteUri(NavManager.Uri);
-        if (QueryHelpers.ParseQuery(uri.Query).TryGetValue("code", out var code))
-        {
-            Code = code;
+        // var uri = NavManager.ToAbsoluteUri(NavManager.Uri);
+        // var state = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        // if (QueryHelpers.ParseQuery(uri.Query).TryGetValue("code", out var code) && !state.User.Identity.IsAuthenticated)
+        // {
+        //     Code = code;
 
-            var client = new TokenClient(
-                new HttpClient() { BaseAddress = new Uri(AthenaServer + "/oauth2/token") },
-                new TokenClientOptions()
-                    {
-                        ClientId = Configuration["AthenaHealth:ClientId"],
-                        ClientSecret = Configuration["AthenaHealth:ClientSecret"]
-                    });
-            var tokenResponse = await client.RequestAuthorizationCodeTokenAsync(Code, Configuration["AthenaHealth:RedirectUrl"]);
-            Error = tokenResponse.ErrorType + ": " + tokenResponse.Error + " " + tokenResponse.ErrorDescription;
-            RawToken = tokenResponse.Raw;
-            if (tokenResponse.Json.HasValue)
+        //     ((IHostEnvironmentAuthenticationStateProvider)this.AuthenticationStateProvider).SetAuthenticationState(this.GetAuthenticationStateFromCode(code));
+        // }
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        //if (firstRender)
+        {
+            var uri = NavManager.ToAbsoluteUri(NavManager.Uri);
+            var state = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+            if (QueryHelpers.ParseQuery(uri.Query).TryGetValue("code", out var code) && !state.User.Identity.IsAuthenticated)
             {
-                PatientId = tokenResponse.Json.Value.GetProperty("patient").GetString() ?? "-";
-                TokenScopes = tokenResponse.Json.Value.GetProperty("scope").GetString() ?? "-";
-                Uuid = tokenResponse.Json.Value.GetProperty("uuid").GetString() ?? "-";
-                NeedPatientBanner = tokenResponse.Json.Value.GetProperty("need_patient_banner").GetBoolean();
-                SmartUrl = tokenResponse.Json.Value.GetProperty("smart_style_url").GetString() ?? "-";
+                Code = code;
+
+                ((IHostEnvironmentAuthenticationStateProvider)this.AuthenticationStateProvider).SetAuthenticationState(this.GetAuthenticationStateFromCode(code));
+                StateHasChanged();
             }
         }
+    }
+
+    private async Task<AuthenticationState> GetAuthenticationStateFromCode(string code)
+    {
+        var storedTokenResponse = await ProtectedSessionStorage.GetAsync<TokenResponse>("login");
+        if (storedTokenResponse.Success)
+        {
+            return new AuthenticationState(CreatePrincipal(storedTokenResponse.Value));
+        }
+
+        var client = new TokenClient(
+            new HttpClient() { BaseAddress = new Uri(FhirSample.AthenaServer + "/oauth2/token") },
+            new TokenClientOptions()
+                {
+                    ClientId = Configuration["AthenaHealth:ClientId"],
+                    ClientSecret = Configuration["AthenaHealth:ClientSecret"]
+                });
+        var tokenResponse = await client.RequestAuthorizationCodeTokenAsync(code, Configuration["AthenaHealth:RedirectUrl"]);
+        Error = tokenResponse.ErrorType + ": " + tokenResponse.Error + " " + tokenResponse.ErrorDescription;
+        RawToken = tokenResponse.Raw;
+        if (tokenResponse.Json.HasValue && !tokenResponse.IsError)
+        {
+            await ProtectedSessionStorage.SetAsync("login", tokenResponse);
+            PatientId = tokenResponse.Json.Value.GetProperty("patient").GetString() ?? "-";
+            TokenScopes = tokenResponse.Json.Value.GetProperty("scope").GetString() ?? "-";
+            Uuid = tokenResponse.Json.Value.GetProperty("uuid").GetString() ?? "-";
+            NeedPatientBanner = tokenResponse.Json.Value.GetProperty("need_patient_banner").GetBoolean();
+            SmartUrl = tokenResponse.Json.Value.GetProperty("smart_style_url").GetString() ?? "-";
+        }
+        
+        return new AuthenticationState(CreatePrincipal(tokenResponse));
+    }
+
+    ClaimsPrincipal CreatePrincipal(TokenResponse tokenResponse)
+    {
+        RawToken = tokenResponse.Raw;
+        if (tokenResponse.Json.HasValue && !tokenResponse.IsError)
+        {
+            PatientId = tokenResponse.Json.Value.GetProperty("patient").GetString() ?? "-";
+            TokenScopes = tokenResponse.Json.Value.GetProperty("scope").GetString() ?? "-";
+            Uuid = tokenResponse.Json.Value.GetProperty("uuid").GetString() ?? "-";
+            NeedPatientBanner = tokenResponse.Json.Value.GetProperty("need_patient_banner").GetBoolean();
+            SmartUrl = tokenResponse.Json.Value.GetProperty("smart_style_url").GetString() ?? "-";
+            return new ClaimsPrincipal(
+                new ClaimsIdentity(
+                    [
+                        new Claim("PatientId", PatientId),
+                        new Claim("Uuid", Uuid),
+                        new Claim("SmartUrl", SmartUrl),
+                        new Claim("NeedPatientBanner", NeedPatientBanner.ToString()),
+                        new Claim("TokenScopes", TokenScopes),
+                        new Claim("access_token", tokenResponse.AccessToken),
+                        new Claim("id_token", tokenResponse.IdentityToken),
+                    ], "Bearer"));
+        }
+
+        if (tokenResponse.IsError)
+        {
+            Logger.LogError(tokenResponse.ErrorType + ": " + tokenResponse.Error + " " + tokenResponse.ErrorDescription);
+        }
+
+        return new ClaimsPrincipal();
     }
 
 }

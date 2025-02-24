@@ -1,11 +1,24 @@
+using AthenaHealthConnect;
 using AthenaHealthConnect.Client.Pages;
 using AthenaHealthConnect.Components;
+using Microsoft.AspNetCore.Components.Authorization;
+using Microsoft.AspNetCore.Components.Server;
 
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
 builder.Services.AddRazorComponents()
+    .AddInteractiveServerComponents()
     .AddInteractiveWebAssemblyComponents();
+
+builder.Services.AddAuthentication()
+    .AddBearerToken(options =>
+    {
+        //options.ClaimsIssuer = FhirSample.AthenaServer;
+    });
+builder.Services.AddAuthorization();
+builder.Services.AddCascadingAuthenticationState();
+builder.Services.AddScoped<AuthenticationStateProvider, ServerAuthenticationStateProvider>();
 
 var app = builder.Build();
 
@@ -24,10 +37,14 @@ else
 app.UseHttpsRedirection();
 
 
+// For authentication
+app.UseAuthentication();
+app.UseAuthorization();
 app.UseAntiforgery();
 
 app.MapStaticAssets();
 app.MapRazorComponents<App>()
+    .AddInteractiveServerRenderMode()
     .AddInteractiveWebAssemblyRenderMode()
     .AddAdditionalAssemblies(typeof(AthenaHealthConnect.Client._Imports).Assembly);
 

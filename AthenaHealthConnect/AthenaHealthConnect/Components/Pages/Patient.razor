@@ -1,0 +1,19 @@
+﻿@page "/current-patient"
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.Components.Authorization
+@attribute [Authorize]
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@rendermode InteractiveServer
+
+<h3>Patient</h3>
+
+@code {
+    protected override async Task OnInitializedAsync()
+    {
+        var state = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        var accessToken = state.User.FindFirst("access_token")?.Value;
+        var patientId = state.User.FindFirst("PatientId")?.Value;
+        await FhirSample.FindPatientById(FhirSample.AthenaServer, accessToken, patientId);
+    }
+
+}
