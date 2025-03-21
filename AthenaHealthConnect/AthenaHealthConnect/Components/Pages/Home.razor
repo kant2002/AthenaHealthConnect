@@ -12,6 +12,7 @@
 @inject AuthenticationStateProvider AuthenticationStateProvider
 @inject ProtectedSessionStorage ProtectedSessionStorage
 @rendermode InteractiveServer
+@* @rendermode InteractiveAuto *@
 
 <PageTitle>Home</PageTitle>
 
@@ -20,6 +21,7 @@
 <p>
     Athena Health Server: @FhirSample.AthenaServer
 </p>
+<p>AccessToken: @AccessToken</p>
 
 <AuthorizeView>
     <Authorized>
@@ -40,30 +42,13 @@
     </NotAuthorized>
 </AuthorizeView>
 
-@* @if (string.IsNullOrEmpty(Code)) *@
-@* { *@
-@*     <a href="@GetStartUrl()" rel="noreferrer" class="btn btn-primary">Login</a> *@
-@* } *@
-@* else *@
-@* { *@
-@*     <p>Error: @Error</p> *@
-@*     <p>PatientId: @PatientId</p> *@
-@*     <p>Uuid: @Uuid</p> *@
-@*     <p>AccessToken: @AccessToken</p> *@
-@*     <p>RawToken: @RawToken</p> *@
-@*     <p>Code: @Code</p> *@
-@*     <p>Scopes:  *@
-@*         <ul> *@
-@*             @foreach (var scope in TokenScopes.Split(" ")) *@
-@*             { *@
-@*                 <li>@scope</li> *@
-@*             } *@
-@*         </ul> *@
-@*     </p> *@
-@*     <p>NeedPatientBanner: @NeedPatientBanner</p> *@
-@*     <p><a href=@SmartUrl class="btn btn-secondary">SmartUrl</a></p> *@
+<InputText @bind-Value="AccessToken" class="form-control" placeholder="AccessToken" />
+<button @onclick="TestFhir" class="btn btn-primary">Test FHIR</button>
 
-@* } *@
+@* <button @onclick="TestFhir" class="btn btn-primary">Test FHIR</button>
+<button @onclick="() => Test2()" class="btn btn-primary">Test 2</button> *@
+
+@SmartUrl
 
 @code {
     public string Code { get; set; }
@@ -75,6 +60,8 @@
     public string Uuid { get; set; }
     public bool NeedPatientBanner { get; set; }
     public string SmartUrl { get; set; }
+    [CascadingParameter]
+    public Task<AuthenticationState> AuthenticationState { get; set; }
 
     public string GetStartUrl()
     {
@@ -89,14 +76,22 @@
 
     protected override async Task OnInitializedAsync()
     {
-        // var uri = NavManager.ToAbsoluteUri(NavManager.Uri);
-        // var state = await AuthenticationStateProvider.GetAuthenticationStateAsync();
-        // if (QueryHelpers.ParseQuery(uri.Query).TryGetValue("code", out var code) && !state.User.Identity.IsAuthenticated)
-        // {
-        //     Code = code;
-
-        //     ((IHostEnvironmentAuthenticationStateProvider)this.AuthenticationStateProvider).SetAuthenticationState(this.GetAuthenticationStateFromCode(code));
-        // }
+        var uri = NavManager.ToAbsoluteUri(NavManager.Uri);
+        var state = await AuthenticationState;
+        if (QueryHelpers.ParseQuery(uri.Query).TryGetValue("code", out var code)
+            && !state.User.Identity.IsAuthenticated
+            && Code != code)
+        {
+            Code = code;
+            if (this.AuthenticationStateProvider is InMemoryServerAuthenticationStateProvider inMemoryServerAuthenticationStateProvider)
+            {
+                inMemoryServerAuthenticationStateProvider.SetCodeAsync(code);
+            }
+            // else
+            // {
+            //     ((IHostEnvironmentAuthenticationStateProvider)this.AuthenticationStateProvider).SetAuthenticationState(this.GetAuthenticationStateFromCode(code));
+            // }
+        }
     }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
@@ -104,15 +99,33 @@
         //if (firstRender)
         {
             var uri = NavManager.ToAbsoluteUri(NavManager.Uri);
-            var state = await AuthenticationStateProvider.GetAuthenticationStateAsync();
-            if (QueryHelpers.ParseQuery(uri.Query).TryGetValue("code", out var code) && !state.User.Identity.IsAuthenticated)
+            var state = await AuthenticationState;
+            if (QueryHelpers.ParseQuery(uri.Query).TryGetValue("code", out var code) 
+                && (state.User.Identity == null || !state.User.Identity.IsAuthenticated))
             {
                 Code = code;
 
-                ((IHostEnvironmentAuthenticationStateProvider)this.AuthenticationStateProvider).SetAuthenticationState(this.GetAuthenticationStateFromCode(code));
-                StateHasChanged();
+                if (!(this.AuthenticationStateProvider is InMemoryServerAuthenticationStateProvider))
+                {
+                    ((IHostEnvironmentAuthenticationStateProvider)this.AuthenticationStateProvider).SetAuthenticationState(this.GetAuthenticationStateFromCode(code));
+                    StateHasChanged();
+                }
             }
         }
+    }
+
+    async Task TestFhir()
+    {
+        var state = await AuthenticationState;
+        var accessToken = string.IsNullOrWhiteSpace(AccessToken) ? state.User.FindFirst("access_token")?.Value : AccessToken;
+        var patientId = state.User.FindFirst("PatientId")?.Value;
+        var uuid = state.User.FindFirst("Uuid")?.Value;
+        await FhirSample.FindPatientById(FhirSample.AthenaServer + "/", accessToken, patientId);
+    }
+
+    async Task Test2()
+    {
+        SmartUrl = "111";
     }
 
     private async Task<AuthenticationState> GetAuthenticationStateFromCode(string code)
@@ -142,7 +155,7 @@
             NeedPatientBanner = tokenResponse.Json.Value.GetProperty("need_patient_banner").GetBoolean();
             SmartUrl = tokenResponse.Json.Value.GetProperty("smart_style_url").GetString() ?? "-";
         }
-        
+
         return new AuthenticationState(CreatePrincipal(tokenResponse));
     }
 
@@ -158,7 +171,7 @@
             SmartUrl = tokenResponse.Json.Value.GetProperty("smart_style_url").GetString() ?? "-";
             return new ClaimsPrincipal(
                 new ClaimsIdentity(
-                    [
+                        [
                         new Claim("PatientId", PatientId),
                         new Claim("Uuid", Uuid),
                         new Claim("SmartUrl", SmartUrl),

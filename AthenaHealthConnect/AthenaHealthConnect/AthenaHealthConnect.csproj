@@ -11,7 +11,7 @@
     <ProjectReference Include="..\AthenaHealthConnect.Client\AthenaHealthConnect.Client.csproj" />
     <PackageReference Include="Duende.IdentityModel" Version="7.0.0" />
     <PackageReference Include="Hl7.Fhir.R4" Version="5.11.4" />
-    <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly.Server" Version="9.0.2" />
+    <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly.Server" Version="9.0.3" />
   </ItemGroup>
 
 </Project>

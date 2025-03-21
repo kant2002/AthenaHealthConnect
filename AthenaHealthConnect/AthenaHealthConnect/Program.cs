@@ -1,24 +1,45 @@
 using AthenaHealthConnect;
-using AthenaHealthConnect.Client.Pages;
 using AthenaHealthConnect.Components;
+using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Components.Authorization;
 using Microsoft.AspNetCore.Components.Server;
+using Microsoft.Extensions.DependencyInjection;
 
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
 builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents()
-    .AddInteractiveWebAssemblyComponents();
+    .AddInteractiveWebAssemblyComponents()
+    .AddAuthenticationStateSerialization(
+        options => options.SerializeAllClaims = true);
 
-builder.Services.AddAuthentication()
-    .AddBearerToken(options =>
-    {
-        //options.ClaimsIssuer = FhirSample.AthenaServer;
-    });
+builder.Services.AddSingleton<InMemoryTokenStorage>();
+
+_ = builder.Services.AddAuthentication()
+    //.AddOAuth("AthenaHealth", "Connect using Athena Health", options =>
+    //{
+    //    options.ClientId = builder.Configuration["AthenaHealth:ClientId"];
+    //    options.ClientSecret = builder.Configuration["AthenaHealth:ClientSecret"];
+    //    options.AuthorizationEndpoint = builder.Configuration["AthenaHealth:AuthorizationEndpoint"];
+    //    options.TokenEndpoint = builder.Configuration["AthenaHealth:TokenEndpoint"];
+    //    options.CallbackPath = builder.Configuration["AthenaHealth:CallbackPath"];
+
+    //    options.SaveTokens = true;
+    //    options.Scope.Add("openid");
+    //    options.Scope.Add("profile");
+    //    options.Scope.Add("patient/*.read");
+    //    options.Scope.Add("launch/patient");
+
+    //    options.ClaimActions.MapJsonKey("urn:athenahealth:patient_id", "patient_id");
+    //    options.ClaimActions.MapJsonKey("urn:athenahealth:patient_name", "patient_name");
+    //})
+    ;
+
 builder.Services.AddAuthorization();
 builder.Services.AddCascadingAuthenticationState();
 builder.Services.AddScoped<AuthenticationStateProvider, ServerAuthenticationStateProvider>();
+//builder.Services.AddScoped<AuthenticationStateProvider, InMemoryServerAuthenticationStateProvider>();
 
 var app = builder.Build();
 
